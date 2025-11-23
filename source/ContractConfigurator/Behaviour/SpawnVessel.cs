@@ -15,6 +15,25 @@ namespace ContractConfigurator.Behaviour
     /// </summary>
     public class SpawnVessel : ContractBehaviour, IHasKerbalBehaviour, IKerbalNameStorage
     {
+        public class ConditionDetail
+        {
+            public enum Condition
+            {
+                CONTRACT_ACCEPTED,
+                CONTRACT_FAILED,
+                CONTRACT_SUCCESS,
+                CONTRACT_COMPLETED,
+                PARAMETER_FAILED,
+                PARAMETER_COMPLETED
+            }
+
+            public Condition condition;
+            public string parameter;
+        }
+
+        protected List<ConditionDetail> conditions = new List<ConditionDetail>();
+        protected SpawnVessel spawnVessel;
+
         private class CrewData
         {
             public string name = null;
@@ -22,6 +41,7 @@ namespace ContractConfigurator.Behaviour
             public bool addToRoster = true;
 
             public CrewData() { }
+
             public CrewData(CrewData cd)
             {
                 name = cd.name;
@@ -84,7 +104,6 @@ namespace ContractConfigurator.Behaviour
         }
         private List<VesselData> vessels = new List<VesselData>();
         private bool vesselsCreated = false;
-        private bool deferVesselCreation = false;
 
         public int KerbalCount
         {
@@ -100,9 +119,10 @@ namespace ContractConfigurator.Behaviour
         /// Copy Constructor.
         /// </summary>
         /// <param name="orig"></param>
-        public SpawnVessel(SpawnVessel orig)
+        public SpawnVessel(List<ConditionDetail> conditions, SpawnVessel orig)
         {
-            deferVesselCreation = orig.deferVesselCreation;
+            this.conditions = conditions;
+
             foreach (VesselData vessel in orig.vessels)
             {
                 if (vessel.pqsCity != null)
@@ -136,8 +156,15 @@ namespace ContractConfigurator.Behaviour
         public static SpawnVessel Create(ConfigNode configNode, SpawnVesselFactory factory)
         {
             SpawnVessel spawnVessel = new SpawnVessel();
+            bool dummy = false;
+            ConfigNodeUtil.ParseValue<bool>(configNode, "deferVesselCreation", x => dummy = x, factory, false); // deferVesselCreation is deprecated
 
-            ConfigNodeUtil.ParseValue<bool>(configNode, "deferVesselCreation", x => spawnVessel.deferVesselCreation = x, factory, false);
+            foreach (ConfigNode child in configNode.GetNodes("CONDITION"))
+            {
+                ConditionDetail cd = new ConditionDetail();
+                ConfigNodeUtil.ParseValue<ConditionDetail.Condition>(configNode, "condition", x => cd.condition = x, factory, ConditionDetail.Condition.CONTRACT_COMPLETED);
+                ConfigNodeUtil.ParseValue<string>(configNode, "parameter", x => cd.parameter = x, factory, (string)null);
+            }
 
             bool valid = true;
             int index = 0;
@@ -240,7 +267,8 @@ namespace ContractConfigurator.Behaviour
                             CrewData cd = new CrewData();
 
                             // Read crew details
-                            valid &= ConfigNodeUtil.ParseValue<string>(crewNode, "name", x => cd.name = x, factory, (string)null);
+                            valid &= ConfigNodeUtil.ParseValue<string>(crewNode, "name", x => cd.name = x, factory, (string)null); 
+                            valid &= ConfigNodeUtil.ParseValue<ProtoCrewMember.Gender>(crewNode, "gender", x => cd.gender = x, factory, 0);
                             valid &= ConfigNodeUtil.ParseValue<bool>(crewNode, "addToRoster", x => cd.addToRoster = x, factory, true);
 
                             // Check for unexpected values
@@ -408,17 +436,21 @@ namespace ContractConfigurator.Behaviour
                         // Add the crew member
                         if (part != null)
                         {
-                            // Create the ProtoCrewMember
-                            ProtoCrewMember crewMember = HighLogic.CurrentGame.CrewRoster.GetNewKerbal(ProtoCrewMember.KerbalType.Unowned);
-                            if (cd.gender != null)
+                            ProtoCrewMember crewMember = HighLogic.CurrentGame.CrewRoster.AllKerbals().Where(cm => cm.name == cd.name && cm.rosterStatus == ProtoCrewMember.RosterStatus.Available).FirstOrDefault<ProtoCrewMember>();
+                            // Create the ProtoCrewMember if does not exist
+                            if (crewMember == null || crewMember.name != cd.name)
                             {
-                                crewMember.gender = cd.gender.Value;
+                                crewMember = HighLogic.CurrentGame.CrewRoster.GetNewKerbal(ProtoCrewMember.KerbalType.Unowned);
+                                if (cd.gender != null)
+                                {
+                                    crewMember.gender = cd.gender.Value;
+                                }
+                                if (cd.name != null)
+                                {
+                                    crewMember.ChangeName(cd.name);
+                                }
                             }
-                            if (cd.name != null)
-                            {
-                                crewMember.ChangeName(cd.name);
-                            }
-
+                            
                             // Add them to the part
                             success = part.AddCrewmemberAt(crewMember, part.protoModuleCrew.Count);
                         }
@@ -585,6 +617,7 @@ namespace ContractConfigurator.Behaviour
                 ProtoVessel protoVessel = new ProtoVessel(protoVesselNode, HighLogic.CurrentGame);
                 protoVessel.Load(HighLogic.CurrentGame.flightState);
 
+
                 // Store the id for later use
                 vesselData.id = protoVessel.vesselRef.id;
 
@@ -593,6 +626,8 @@ namespace ContractConfigurator.Behaviour
             }
 
             vesselsCreated = true;
+            // After the vessels are created, save the game again so we don't lose our changes
+            GamePersistence.SaveGame("persistent", HighLogic.SaveFolder, SaveMode.OVERWRITE);
             return true;
         }
 
@@ -600,7 +635,17 @@ namespace ContractConfigurator.Behaviour
         {
             base.OnSave(configNode);
             configNode.AddValue("vesselsCreated", vesselsCreated);
-            configNode.AddValue("deferVesselCreation", deferVesselCreation);
+            foreach (ConditionDetail cd in conditions)
+            {
+                ConfigNode child = new ConfigNode("CONDITION");
+                configNode.AddNode(child);
+
+                child.AddValue("condition", cd.condition);
+                if (!string.IsNullOrEmpty(cd.parameter))
+                {
+                    child.AddValue("parameter", cd.parameter);
+                }
+            }
 
             foreach (VesselData vd in vessels)
             {
@@ -653,6 +698,7 @@ namespace ContractConfigurator.Behaviour
                     {
                         crewNode.AddValue("name", cd.name);
                     }
+                    crewNode.AddValue("gender", cd.gender);
                     crewNode.AddValue("addToRoster", cd.addToRoster);
 
                     child.AddNode(crewNode);
@@ -666,7 +712,14 @@ namespace ContractConfigurator.Behaviour
         {
             base.OnLoad(configNode);
             vesselsCreated = ConfigNodeUtil.ParseValue<bool>(configNode, "vesselsCreated");
-            deferVesselCreation = ConfigNodeUtil.ParseValue<bool?>(configNode, "deferVesselCreation", (bool?)false).Value;
+
+            foreach (ConfigNode child in configNode.GetNodes("CONDITION"))
+            {
+                ConditionDetail cd = new ConditionDetail();
+                cd.condition = ConfigNodeUtil.ParseValue<ConditionDetail.Condition>(child, "condition");
+                cd.parameter = ConfigNodeUtil.ParseValue<string>(child, "parameter", (string)null);
+                conditions.Add(cd);
+            }
 
             foreach (ConfigNode child in configNode.GetNodes("VESSEL_DETAIL"))
             {
@@ -699,6 +752,7 @@ namespace ContractConfigurator.Behaviour
                     CrewData cd = new CrewData();
 
                     cd.name = ConfigNodeUtil.ParseValue<string>(crewNode, "name", (string)null);
+                    cd.gender = ConfigNodeUtil.ParseValue<ProtoCrewMember.Gender>(crewNode, "gender", 0);
                     cd.addToRoster = ConfigNodeUtil.ParseValue<bool>(crewNode, "addToRoster");
 
                     vd.crew.Add(cd);
@@ -712,13 +766,11 @@ namespace ContractConfigurator.Behaviour
         protected override void OnRegister()
         {
             GameEvents.onVesselRecovered.Add(OnVesselRecovered);
-            GameEvents.onGameSceneLoadRequested.Add(OnGameSceneLoad);
         }
 
         protected override void OnUnregister()
         {
             GameEvents.onVesselRecovered.Remove(OnVesselRecovered);
-            GameEvents.onGameSceneLoadRequested.Remove(OnGameSceneLoad);
         }
 
         private void OnVesselRecovered(ProtoVessel v, bool quick)
@@ -775,24 +827,40 @@ namespace ContractConfigurator.Behaviour
             }
         }
 
-        private void OnGameSceneLoad(GameScenes gameScene)
-        {
-            if (deferVesselCreation && (gameScene == GameScenes.FLIGHT || gameScene == GameScenes.TRACKSTATION || gameScene == GameScenes.EDITOR))
-            {
-                if (CreateVessels())
-                {
-                    // After the vessels are created, save the game again so we don't lose our changes
-                    GamePersistence.SaveGame("persistent", HighLogic.SaveFolder, SaveMode.OVERWRITE);
-                }
-            }
-        }
-
         protected override void OnAccepted()
         {
-            if (!deferVesselCreation)
-            {
+            if (conditions.Count > 0)
+                foreach (ConditionDetail cd in conditions.Where(cd => cd.condition == ConditionDetail.Condition.CONTRACT_ACCEPTED))
+                    CreateVessels();
+            else
                 CreateVessels();
+        }
+
+        protected override void OnCompleted()
+        {
+            foreach (ConditionDetail cd in conditions.Where(cd => cd.condition == ConditionDetail.Condition.CONTRACT_COMPLETED || cd.condition == ConditionDetail.Condition.CONTRACT_SUCCESS))
+                CreateVessels();
+        }
+
+        protected override void OnFailed()
+        {
+            foreach (ConditionDetail cd in conditions.Where(cd => cd.condition == ConditionDetail.Condition.CONTRACT_FAILED))
+                CreateVessels();
+        }
+
+        protected override void OnParameterStateChange(ContractParameter param)
+        {
+            if (param.State == ParameterState.Incomplete)
+            {
+                return;
             }
+            ConditionDetail.Condition cond = param.State == ParameterState.Complete ?
+                ConditionDetail.Condition.PARAMETER_COMPLETED :
+                ConditionDetail.Condition.PARAMETER_FAILED;
+
+            LoggingUtil.LogDebug(this, "OnParameterStateChange() Triggered on " + param.ID + ":" + param.State);
+            foreach (ConditionDetail cd in conditions.Where(cd => cd.condition == cond && cd.parameter == param.ID))
+                CreateVessels();
         }
 
         protected override void OnCancelled()
