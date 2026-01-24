@@ -211,7 +211,7 @@ namespace ContractConfigurator
                         }
 
                         // Add all children as possible new vessels
-                        foreach (ProtoPartSnapshot child in parts.Where(childPart => childPart.parent == p))
+                        foreach (ProtoPartSnapshot child in parts.Where(p1 => p1.parent == p))
                         {
                             dockedParts[child.flightID] = child.flightID;
                         }
@@ -219,7 +219,12 @@ namespace ContractConfigurator
                         if (pm.moduleName == "ModuleGrappleNode")
                         {
                             ModuleGrappleNode grapple = pm.moduleRef as ModuleGrappleNode;
-                            ProtoPartSnapshot dockedPart = parts.Where(childPart => childPart.flightID == grapple.dockedPartUId).FirstOrDefault();
+                            if (grapple == null)
+                            {
+                                throw new Exception($"Trying to access unloaded ModuleGrappleNode on part {p.partName}, vessel {vessel.vesselName}");
+                            }
+
+                            ProtoPartSnapshot dockedPart = parts.Where(p2 => p2.flightID == grapple.dockedPartUId).FirstOrDefault();
                             if (dockedPart != null)
                             {
                                 otherVessel.Enqueue(dockedPart);
@@ -229,7 +234,7 @@ namespace ContractConfigurator
                 }
 
                 // Go through our child parts
-                foreach (ProtoPartSnapshot child in parts.Where(childPart => childPart.parent == p))
+                foreach (ProtoPartSnapshot child in parts.Where(p3 => p3.parent == p))
                 {
                     if (!visited.ContainsKey(child))
                     {
