@@ -218,16 +218,23 @@ namespace ContractConfigurator
 
                         if (pm.moduleName == "ModuleGrappleNode")
                         {
-                            ModuleGrappleNode grapple = pm.moduleRef as ModuleGrappleNode;
-                            if (grapple == null)
+                            uint dockedPartUId = 0;
+                            if (pm.moduleRef is ModuleGrappleNode grapple)
                             {
-                                throw new Exception($"Trying to access unloaded ModuleGrappleNode on part {p.partName}, vessel {vessel.vesselName}");
+                                dockedPartUId = grapple.dockedPartUId;
+                            }
+                            else if (pm.moduleValues.HasValue("dockUId"))   // Module is unloaded. Try to fetch from ConfigNode directly.
+                            {
+                                dockedPartUId = uint.Parse(pm.moduleValues.GetValue("dockUId"));
                             }
 
-                            ProtoPartSnapshot dockedPart = parts.Where(p2 => p2.flightID == grapple.dockedPartUId).FirstOrDefault();
-                            if (dockedPart != null)
+                            if (dockedPartUId != 0)
                             {
-                                otherVessel.Enqueue(dockedPart);
+                                ProtoPartSnapshot dockedPart = parts.Where(p2 => p2.flightID == dockedPartUId).FirstOrDefault();
+                                if (dockedPart != null)
+                                {
+                                    otherVessel.Enqueue(dockedPart);
+                                }
                             }
                         }
                     }
