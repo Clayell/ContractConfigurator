@@ -1297,6 +1297,26 @@ namespace ContractConfigurator.Util
             }
         }
 
+        private void FormatContractText(ref string output, int starCount, string title, int current, int max, string starSpacing, string titleSpacing, bool addNewLine)
+        {
+            string stars = string.Concat(Enumerable.Repeat("<sprite=\"CurrencySpriteAsset\" name=\"Reputation\" tint=1>", starCount));
+
+            string text;
+
+            if (max == int.MaxValue)
+            {
+                text = "{2}";
+            }
+            else
+            {
+                text = current >= max ? "<color=#f97306>{2}  [{1}: {3}]</color>" : "{2}  [{1}: {3}]";
+            }
+
+            text = addNewLine ? text + "\n" : text;
+
+            output += StringBuilderCache.Format($"<b><color=#f4ee21>{stars}{starSpacing}</color><color=#DB8310>{{0}}{titleSpacing}</color></b>{text}", Localizer.Format(title), Localizer.Format("#cc.mcui.max"), current, max);
+        }
+
         protected void UpdateContractCounts()
         {
             int activeCount = ContractSystem.Instance.GetActiveContractCount();
@@ -1326,11 +1346,12 @@ namespace ContractConfigurator.Util
             int exceptionalMax = Math.Min(ContractConfigurator.ContractLimit(Contract.ContractPrestige.Exceptional), maxActive);
 
             string output = "";
-            output += StringBuilderCache.Format("<b><color=#f4ee21><sprite=\"CurrencySpriteAsset\" name=\"Reputation\" tint=1>\t\t</color><color=#DB8310>{0}\t\t</color></b>" + (trivialCount >= trivialMax ? "<color=#f97306>{2}  [{1}: {3}]</color>\n" : "{2}  [{1}: {3}]\n"), Localizer.Format("#cc.mcui.title.trivial"), Localizer.Format("#cc.mcui.max"), trivialCount, trivialMax);
-            output += StringBuilderCache.Format("<b><color=#f4ee21><sprite=\"CurrencySpriteAsset\" name=\"Reputation\" tint=1><sprite=\"CurrencySpriteAsset\" name=\"Reputation\" tint=1>\t\t</color><color=#DB8310>{0}\t</color></b>" + (significantCount >= significantMax ? "<color=#f97306>{2}  [{1}: {3}]</color>\n" : "{2}  [{1}: {3}]\n"), Localizer.Format("#cc.mcui.title.significant"), Localizer.Format("#cc.mcui.max"), significantCount, significantMax);
-            output += StringBuilderCache.Format("<b><color=#f4ee21><sprite=\"CurrencySpriteAsset\" name=\"Reputation\" tint=1><sprite=\"CurrencySpriteAsset\" name=\"Reputation\" tint=1><sprite=\"CurrencySpriteAsset\" name=\"Reputation\" tint=1>\t</color><color=#DB8310>{0}\t</color></b>" + (exceptionalCount >= exceptionalMax ? "<color=#f97306>{2}  [{1}: {3}]</color>\n" : "{2}  [{1}: {3}]\n"), Localizer.Format("#cc.mcui.title.exceptional"), Localizer.Format("#cc.mcui.max"), exceptionalCount, exceptionalMax);
-            output += StringBuilderCache.Format("<b>\t\t<color=#DB8310>{0}\t\t</color></b>" + (maxActive == int.MaxValue ? "{2}" : activeCount >= maxActive ? "<color=#f97306>{2}  [{1}: {3}]</color>" : "{2}  [{1}: {3}]"), Localizer.Format("#cc.mcui.title.allActive"), Localizer.Format("#cc.mcui.max"), activeCount, maxActive);
-            MissionControl.Instance.textMCStats.text = output; MissionControl.Instance.textMCStats.text = output;
+            FormatContractText(ref output, 1, "#cc.mcui.title.trivial", trivialCount, trivialMax, "\t\t", "\t\t", true);
+            FormatContractText(ref output, 2, "#cc.mcui.title.significant", significantCount, significantMax, "\t\t", "\t", true);
+            FormatContractText(ref output, 3, "#cc.mcui.title.exceptional", exceptionalCount, exceptionalMax, "\t", "\t", true);
+            FormatContractText(ref output, 0, "#cc.mcui.title.allActive", activeCount, maxActive, "\t\t", "\t\t", false);
+
+            MissionControl.Instance.textMCStats.text = output;
         }
 
         protected void OnDeselectContract(UIRadioButton button, UIRadioButton.CallType callType, PointerEventData data)
