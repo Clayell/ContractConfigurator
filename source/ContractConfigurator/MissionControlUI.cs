@@ -1305,16 +1305,16 @@ namespace ContractConfigurator.Util
 
             if (max == int.MaxValue)
             {
-                text = "{2}";
+                text = "{5}";
             }
             else
             {
-                text = current >= max ? "<color=#f97306>{2}  [{1}: {3}]</color>" : "{2}  [{1}: {3}]";
+                text = current >= max ? "<color=#f97306>{5}  [{4}: {6}]</color>" : "{5}  [{4}: {6}]";
             }
 
             text = addNewLine ? text + "\n" : text;
 
-            output += StringBuilderCache.Format($"<b><color=#f4ee21>{stars}{starSpacing}</color><color=#DB8310>{{0}}{titleSpacing}</color></b>{text}", Localizer.Format(title), Localizer.Format("#cc.mcui.max"), current, max);
+            output += StringBuilderCache.Format("<b><color=#f4ee21>{0}{1}</color><color=#DB8310>{2}{3}</color></b>" + text, stars, starSpacing, Localizer.Format(title), titleSpacing, Localizer.Format("#cc.mcui.max"), current, max);
         }
 
         protected void UpdateContractCounts()
