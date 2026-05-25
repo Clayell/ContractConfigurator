@@ -1,10 +1,4 @@
-﻿using ContractConfigurator.Parameters;
-using Contracts;
-using Contracts.Agents;
-using KSP.Localization;
-using KSP.UI;
-using KSP.UI.Screens;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -13,6 +7,12 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using Contracts;
+using Contracts.Agents;
+using KSP.UI;
+using KSP.UI.Screens;
+using KSP.Localization;
+using ContractConfigurator.Parameters;
 
 namespace ContractConfigurator.Util
 {
