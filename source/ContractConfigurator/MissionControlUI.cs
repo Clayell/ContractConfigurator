@@ -1,4 +1,10 @@
-﻿using System;
+﻿using ContractConfigurator.Parameters;
+using Contracts;
+using Contracts.Agents;
+using KSP.Localization;
+using KSP.UI;
+using KSP.UI.Screens;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -7,12 +13,6 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
-using Contracts;
-using Contracts.Agents;
-using KSP.UI;
-using KSP.UI.Screens;
-using KSP.Localization;
-using ContractConfigurator.Parameters;
 
 namespace ContractConfigurator.Util
 {
@@ -1297,24 +1297,37 @@ namespace ContractConfigurator.Util
             }
         }
 
-        private void FormatContractCounts(ref string output, int starCount, string title, int current, int max, string starSpacing, string titleSpacing, bool addNewLine)
+        private void FormatContractCounts(StringBuilder sb, int starCount, string title, int current, int max, string starSpacing, string titleSpacing, bool addNewLine)
         {
-            string stars = string.Concat(Enumerable.Repeat("<sprite=\"CurrencySpriteAsset\" name=\"Reputation\" tint=1>", starCount));
+            sb.Append("<b><color=#f4ee21>");
 
-            string text;
+            for (int i = 0; i < starCount; i++)
+            {
+                sb.Append("<sprite=\"CurrencySpriteAsset\" name=\"Reputation\" tint=1>");
+            }
+
+            sb.AppendFormat("{0}</color><color=#DB8310>{1}{2}</color></b>", starSpacing, Localizer.Format(title), titleSpacing);
 
             if (max == int.MaxValue)
             {
-                text = "{5}{7}";
+                sb.AppendFormat("{0}", current);
             }
             else
             {
-                text = current >= max ? "<color=#f97306>{5}  [{4}: {6}]</color>{7}" : "{5}  [{4}: {6}]{7}";
+                if (current >= max)
+                {
+                    sb.AppendFormat("<color=#f97306>{0}  [{1}: {2}]</color>", current, Localizer.Format("#cc.mcui.max"), max);
+                }
+                else
+                {
+                    sb.AppendFormat("{0}  [{1}: {2}]", current, Localizer.Format("#cc.mcui.max"), max);
+                }
             }
 
-            string newLine = addNewLine ? "\n" : "";
-
-            output += StringBuilderCache.Format("<b><color=#f4ee21>{0}{1}</color><color=#DB8310>{2}{3}</color></b>" + text, stars, starSpacing, Localizer.Format(title), titleSpacing, Localizer.Format("#cc.mcui.max"), current, max, newLine);
+            if (addNewLine)
+            {
+                sb.Append("\n");
+            }
         }
 
         protected void UpdateContractCounts()
@@ -1345,13 +1358,13 @@ namespace ContractConfigurator.Util
             int significantMax = Math.Min(ContractConfigurator.ContractLimit(Contract.ContractPrestige.Significant), maxActive);
             int exceptionalMax = Math.Min(ContractConfigurator.ContractLimit(Contract.ContractPrestige.Exceptional), maxActive);
 
-            string output = "";
-            FormatContractCounts(ref output, 1, "#cc.mcui.title.trivial", trivialCount, trivialMax, "\t\t", "\t\t", true);
-            FormatContractCounts(ref output, 2, "#cc.mcui.title.significant", significantCount, significantMax, "\t\t", "\t", true);
-            FormatContractCounts(ref output, 3, "#cc.mcui.title.exceptional", exceptionalCount, exceptionalMax, "\t", "\t", true);
-            FormatContractCounts(ref output, 0, "#cc.mcui.title.allActive", activeCount, maxActive, "\t\t", "\t\t", false);
+            StringBuilder sb = StringBuilderCache.Acquire();
+            FormatContractCounts(sb, 1, "#cc.mcui.title.trivial", trivialCount, trivialMax, "\t\t", "\t\t", true);
+            FormatContractCounts(sb, 2, "#cc.mcui.title.significant", significantCount, significantMax, "\t\t", "\t", true);
+            FormatContractCounts(sb, 3, "#cc.mcui.title.exceptional", exceptionalCount, exceptionalMax, "\t", "\t", true);
+            FormatContractCounts(sb, 0, "#cc.mcui.title.allActive", activeCount, maxActive, "\t\t", "\t\t", false);
 
-            MissionControl.Instance.textMCStats.text = output;
+            MissionControl.Instance.textMCStats.text = sb.ToStringAndRelease();
         }
 
         protected void OnDeselectContract(UIRadioButton button, UIRadioButton.CallType callType, PointerEventData data)
