@@ -1297,7 +1297,7 @@ namespace ContractConfigurator.Util
             }
         }
 
-        private void FormatContractText(ref string output, int starCount, string title, int current, int max, string starSpacing, string titleSpacing, bool addNewLine)
+        private void FormatContractCounts(ref string output, int starCount, string title, int current, int max, string starSpacing, string titleSpacing, bool addNewLine)
         {
             string stars = string.Concat(Enumerable.Repeat("<sprite=\"CurrencySpriteAsset\" name=\"Reputation\" tint=1>", starCount));
 
@@ -1346,10 +1346,10 @@ namespace ContractConfigurator.Util
             int exceptionalMax = Math.Min(ContractConfigurator.ContractLimit(Contract.ContractPrestige.Exceptional), maxActive);
 
             string output = "";
-            FormatContractText(ref output, 1, "#cc.mcui.title.trivial", trivialCount, trivialMax, "\t\t", "\t\t", true);
-            FormatContractText(ref output, 2, "#cc.mcui.title.significant", significantCount, significantMax, "\t\t", "\t", true);
-            FormatContractText(ref output, 3, "#cc.mcui.title.exceptional", exceptionalCount, exceptionalMax, "\t", "\t", true);
-            FormatContractText(ref output, 0, "#cc.mcui.title.allActive", activeCount, maxActive, "\t\t", "\t\t", false);
+            FormatContractCounts(ref output, 1, "#cc.mcui.title.trivial", trivialCount, trivialMax, "\t\t", "\t\t", true);
+            FormatContractCounts(ref output, 2, "#cc.mcui.title.significant", significantCount, significantMax, "\t\t", "\t", true);
+            FormatContractCounts(ref output, 3, "#cc.mcui.title.exceptional", exceptionalCount, exceptionalMax, "\t", "\t", true);
+            FormatContractCounts(ref output, 0, "#cc.mcui.title.allActive", activeCount, maxActive, "\t\t", "\t\t", false);
 
             MissionControl.Instance.textMCStats.text = output;
         }
